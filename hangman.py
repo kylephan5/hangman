@@ -29,27 +29,34 @@ async def ircle():
     await writer.drain()
 
     # Write message to channel
-    writer.write(f'PRIVMSG #bots : wow\r\n'.encode())
+    writer.write(f'PRIVMSG #bots : Hello, hangman dude has arried\r\n'.encode())
     #writer.write(f"PRIVMSG #bots :I've fallen and I can't get up!\r\n".encode())
     await writer.drain()
 
     # Read and display
     string = []
-    tries = 5
     while True:
         message = (await reader.readline()).decode().strip()
-        print(message)
         if message.startswith('PING'):
             message = re.findall(r"PING (.*)", message)
             writer.write(f"PONG {message[0]}\r\n".encode())
             await writer.drain()
+            continue
 
         message = re.findall(r'PRIVMSG #bots :(.*)', message)
-        if message and message[0].startswith('!hangman'):
-            string, word = await hangman(reader, writer, tries)
+        if message and message[0].startswith('!hangman'): #start game
+            string, word, tries = await hangman(reader, writer)
         
+        if message and message[0].startswith('!guessword'): #guess word
+            if not string:
+                writer.write(f"PRIVMSG #bots :Start a game first\r\n".encode())
+                await writer.drain()
+            else:
+                message = message[0].split()
+                await guess_word(writer, word, message[1], string)
+                string = []
 
-        if message and message[0] == '!guess':
+        elif message and message[0].startswith('!guess'): #guess
             if not string:
                 writer.write(f"PRIVMSG #bots :Start a game first\r\n".encode())
                 await writer.drain()
@@ -59,16 +66,13 @@ async def ircle():
                     tries = await play_hangman(writer, word, message[1], string, tries)
                     if not tries:
                         string = []
-                        tries = 5
                 else:
-                    writer.write(f"PRIVMSG #bots :bad boy\r\n".encode())
+                    writer.write(f"PRIVMSG #bots :bad boy, one letter guess only\r\n".encode())
                     await writer.drain()
-
-                
 
 
 # Main execution
-async def hangman(reader, writer, tries):
+async def hangman(reader, writer):
     r = RandomWords()
     word = r.get_random_word()
     print(word)
@@ -76,9 +80,9 @@ async def hangman(reader, writer, tries):
     string = ['_'] * len(word)
     letter_count = len(word) #7
     writer.write(f"PRIVMSG #bots :LETS PLAY HANGMAN!\r\n".encode())
-    writer.write(f"PRIVMSG #bots :{' '.join(string)} | Tries left: {tries}\r\n".encode())
+    writer.write(f"PRIVMSG #bots :{' '.join(string)} | Tries left: {len(word)}\r\n".encode())
     await writer.drain()
-    return string, word #returns array with _'s as place holder and word to guess
+    return string, word, len(word) #returns array with _'s as place holder and word to guess
 
 async def play_hangman(writer, word, letter, string_arr, tries): #writer to write, word to guess, letter guessed, current guesses
     match_index = []
@@ -90,6 +94,7 @@ async def play_hangman(writer, word, letter, string_arr, tries): #writer to writ
         tries -= 1
         if tries == 0:
             writer.write(f"PRIVMSG #bots :rekt, start new game\r\n".encode())
+            writer.write(f"PRIVMSG #bots :The word was {word}\r\n".encode())
             await writer.drain()
             return tries
         writer.write(f"PRIVMSG #bots :Nope, try again\r\n".encode())
@@ -110,7 +115,18 @@ async def play_hangman(writer, word, letter, string_arr, tries): #writer to writ
     
     return tries
     
+async def guess_word(writer, word, guess, string_arr):
+    if word == guess:
+        writer.write(f"PRIVMSG #bots :Nice!\r\n".encode())
+        await writer.drain()
+    
+        string_arr = [char for char in word]
+        writer.write(f"PRIVMSG #bots :{' '.join(string_arr)}\r\n".encode())
+        await writer.drain()
 
+    else:
+        writer.write(f"PRIVMSG #bots :Nope, INCORRECT. Start new game\r\n".encode())
+        await writer.drain()
     
 def main():
     asyncio.run(ircle())

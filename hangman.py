@@ -10,7 +10,7 @@ from random_word import RandomWords
 
 HOST = 'chat.ndlug.org'
 PORT = 6697
-NICK = f'ircle-{os.environ["USER"]}'
+NICK = f'hangmanbot'
 
 # Functions
 
@@ -29,7 +29,7 @@ async def ircle():
     await writer.drain()
 
     # Write message to channel
-    writer.write(f'PRIVMSG #bots : Hello, hangman dude has arried\r\n'.encode())
+    writer.write(f'PRIVMSG #bots : Hello, hangman dude has arrived\r\n'.encode())
     #writer.write(f"PRIVMSG #bots :I've fallen and I can't get up!\r\n".encode())
     await writer.drain()
 
@@ -57,18 +57,22 @@ async def ircle():
                 string = []
 
         elif message and message[0].startswith('!guess'): #guess
-            if not string:
-                writer.write(f"PRIVMSG #bots :Start a game first\r\n".encode())
+            message = message[0].split()
+            if len(message) == 1: #check to see if there is a guess
+                writer.write(f"PRIVMSG #bots :Please enter a character\r\n".encode())
                 await writer.drain()
             else:
-                message = message[0].split()
-                if len(message[1]) == 1 and message[1].isalpha():
-                    tries = await play_hangman(writer, word, message[1], string, tries)
-                    if not tries:
-                        string = []
-                else:
-                    writer.write(f"PRIVMSG #bots :bad boy, one letter guess only\r\n".encode())
+                if not string:
+                    writer.write(f"PRIVMSG #bots :Start a game first\r\n".encode())
                     await writer.drain()
+                else:
+                    if len(message[1]) == 1 and message[1].isalpha():
+                        tries = await play_hangman(writer, word, message[1].lower(), string, tries)
+                        if not tries:
+                            string = []
+                    else:
+                        writer.write(f"PRIVMSG #bots :bad boy, one letter guess only\r\n".encode())
+                        await writer.drain()
 
 
 # Main execution

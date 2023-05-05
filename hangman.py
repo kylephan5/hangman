@@ -130,6 +130,7 @@ async def guess_word(writer, word, guess, string_arr):
 
     else:
         writer.write(f"PRIVMSG #bots :Nope, INCORRECT. Start new game\r\n".encode())
+        writer.write(f"PRIVMSG #bots :The word was {word}\r\n".encode())
         await writer.drain()
     
 def main():
